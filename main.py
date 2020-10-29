@@ -1,10 +1,13 @@
+from binascii import unhexlify
+from converting import *
+import threading
 import socket
 import struct
 import spigot
-import debug
-from converting import *
-import parse
 import create
+import random
+import debug
+import parse
 
 MATCHMAKERS = {
     'NA' : [
@@ -22,30 +25,72 @@ MATCHMAKERS = {
     ],
     'ASIA' : [
         '172.104.96.99',
-        '139.162.111.196 '
+        '139.162.111.196'
     ]
 }
 
-ipout = MATCHMAKERS['ASIA'][0]
+area = 'ASIA'
+ipout = MATCHMAKERS[area]
+ipout = ipout[random.randint(0,len(ipout)-1)]
+print(ipout)
 ipaddr = '192.168.100.139'
 port = 22023
 sockin = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sockout = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 getnonce = None
 setnonce = None
-
 sockin.bind((ipaddr, port))
+parseerrors = 0
+def startserver():
+    global port
+    global ipout
+    global ipaddr
+    global sockin
+    global sockout
+    while True:
+        datain, addrin = sockin.recvfrom(4096)
+        if not datain:
+            continue
+        sockout.sendto(datain, (ipout, port))
+        dataout, addrout = sockout.recvfrom(4096)
+        intin, intout = '{}', '{}'
+        f = open('logother.log', 'a')
+        try:
+            intin = parse.packet(datain, 'client')
+            f.write('[C] <<== {}\r\n'.format(str(intin)))
+        except Exception:
+            parseerrors += 1
+            f.write('[C] <<== [{}]\r\n'.format(datain.hex()))
+        try:
+            intout = parse.packet(dataout, 'server')
+            f.write('[S] ==>> {}\r\n'.format(str(intout)))
+            if intout['type']=='redirect':
+                ipout, port = intout['data']
+        except Exception:
+            parseerrors += 1
+            f.write('[S] ==>> [{}]\r\n'.format(dataout.hex()))
+        f.close()
+        sockin.sendto(dataout, addrin)
+        #out = parse.packet(data)
+        #getnonce = out['nonce']
+        #setnonce = create.packet(getnonce, out, sock, database)
+def InterruptableEvent():
+    e = threading.Event()
+
+    def patched_wait():
+        while not e.is_set():
+            e._wait(3)
+
+    e._wait = e.wait
+    e.wait = patched_wait
+    return e
+#startserver()
+process = threading.Thread(target=startserver, args=())
+process.daemon = True
+process.start()
+e = InterruptableEvent()
 while True:
-    datain, addrin = sockin.recvfrom(4096)
-    if not datain:
+    try:
+        e.wait()
+    except KeyboardInterrupt:
         break
-    sockout.sendto(datain, (ipout, port))
-    dataout, addrout = sockout.recvfrom(4096)
-    f = open('log.log', 'a')
-    f.write('[client] <- {}'.format(datain.hex()))
-    f.write('[server] -> {}'.format(dataout.hex()))
-    f.close()
-    sockin.sendto(dataout, addrin)
-    #out = parse.packet(data)
-    #getnonce = out['nonce']
-    #setnonce = create.packet(getnonce, out, sock, database)
