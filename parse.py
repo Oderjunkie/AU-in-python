@@ -30,3 +30,4 @@ def packet(data, clientserv):
         return {'type':'ping','nonce':nonce}
     else:
         assert False # Invalid packet
+        
