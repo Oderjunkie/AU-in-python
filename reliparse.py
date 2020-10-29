@@ -41,7 +41,11 @@ def reliparse(spig, cliserv):
             assert spig.feed()==None
             return {'type':'gamelistrequest', 'nonce':nonce, 'data':(language, mapId, impCount)}
         elif cliserv=='server':
-            return {'type':'gamelist', 'nonce':nonce, 'data':None}
+            spig.wet('xxx')
+            arr = []
+            while spig.bytearr:
+                arr.append(spig.wet('@xi@cs!p!!!'))
+            return {'type':'gamelist', 'nonce':nonce, 'data':arr}
     elif opcode==13:
         # "Redirect"
         ip, port = spig.wet('i@')
