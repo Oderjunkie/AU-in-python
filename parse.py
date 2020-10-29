@@ -1,22 +1,19 @@
 from reliparse import reliparse
-#from unreliparse import unreliparse
+from unreliparse import unreliparse
 import spigot
-def packet(data):
+def packet(data, clientserv):
     spig = spigot.Spigot()
     spig.feed(data)
     opcode = spig.drip('byte')
     if opcode==0:
         # Unreliable packet.
-        return unreliparse(spig)
+        return unreliparse(spig, clientserv)
     elif opcode==1:
         # Reliable packet.
-        return reliparse(spig)
+        return reliparse(spig, clientserv)
     elif opcode==8:
         # "Hello" packet.
-        nonce  = spig.drip('uint16')
-        hazel  = spig.drip('byte')
-        client = spig.drip('int32')
-        name   = spig.drip('string')
+        nonce, hazel, client, name = spig.wet('>@<!4s')
         return {'type':'hello','nonce':nonce,'data':(hazel,client,name)}
     elif opcode==9:
         # "Disconnect" packet.
@@ -24,10 +21,12 @@ def packet(data):
         return {'type':'disconnect','nonce':None}
     elif opcode==10:
         # "Acknowledgement" packet.
-        nonce = spig.drip('uint16')
-        assert spig.drip('byte')==255
+        nonce = spig.drip('uint16', '>')
+        spig.drip('byte')==255
         return {'type':'acknowledgement','nonce':None, 'data':nonce}
     elif opcode==12:
         # "Ping" packet.
         nonce = spig.drip('uint16')
         return {'type':'ping','nonce':nonce}
+    else:
+        assert False # Invalid packet
